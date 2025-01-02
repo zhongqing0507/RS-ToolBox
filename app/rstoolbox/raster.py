@@ -168,7 +168,6 @@ class RSImage:
         return slice_bboxes
 
     def create_raster_file(self, raster_file: Path, gray: bool = False, grid: Optional[List] = None, **kwargs):
-
         width, height = (grid[2] - grid[0], grid[3] - grid[1]) if grid else (self.width, self.height)
         channel = 1 if gray else self.channel
 
@@ -183,7 +182,20 @@ class RSImage:
         ]
         grid_image = driver.Create(raster_file.as_posix(), width, height, channel,
                                    self.data_type, options=create_options)
-        grid_image.SetGeoTransform(self.trans)
+        
+        # 根据grid位置调整地理坐标变换参数
+        if grid is not None:
+            # 获取原始变换参数
+            originX, pixelWidth, rotX, originY, rotY, pixelHeight = self.trans
+            # 计算新的原点坐标
+            new_originX = originX + grid[0] * pixelWidth
+            new_originY = originY + grid[1] * pixelHeight
+            # 创建新的变换参数
+            new_trans = (new_originX, pixelWidth, rotX, new_originY, rotY, pixelHeight)
+            grid_image.SetGeoTransform(new_trans)
+        else:
+            grid_image.SetGeoTransform(self.trans)
+        
         grid_image.SetProjection(self.proj)
         return RSImage(grid_image, **kwargs)
 
